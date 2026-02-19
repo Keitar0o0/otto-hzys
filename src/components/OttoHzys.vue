@@ -288,8 +288,8 @@ import pinyin2 from "pinyin"
 import Pizzicato from 'pizzicato'
 import { ElMessage } from 'element-plus'
 
-const TOKENS_PATH = 'static/tokens/'
-const YSDD_TOKEN_PATH = 'static/ysddTokens/'
+const TOKENS_PATH = 'static/tokens'
+const YSDD_TOKEN_PATH = 'static/ysddTokens'
 
 const crunker = new Crunker()
 
@@ -365,21 +365,55 @@ export default {
           }
         })
         .catch(err => console.error('加载中式英文读音配置失败', err))
-      const tokenDict = new Map()
       return {
-        tokenSet, ysddDict, chinglish, tokenDict,
+        tokenSet, ysddDict, chinglish,
         ysddLastWordLengthIndex, ysddSource, tonedChinglish
       }
     }
 
     const {
-      tokenSet, ysddDict, chinglish, tokenDict,
+      tokenSet, ysddDict, chinglish,
       ysddLastWordLengthIndex, ysddSource, tonedChinglish
     } = configInit()
+
+    // 预加载子目录文件列表信息
+    const subdirFileMap = new Map()
+    
+    // 初始化子目录文件映射
+    async function initSubdirFileMap() {
+      const subdirFileLists = {
+        'amns': ['a_0001.wav', 'ha_0001.wav', 'mo_0001.wav', 'ni_0001.wav', 'niu_0001.wav', 'nuo_0001.wav', 'wo_0001.wav'],
+        'ddj': ['chu_0001.wav', 'da_0001.wav', 'da_0002.wav', 'da_0003.wav', 'da_0004.wav', 'dai_0001.wav', 'dai_0002.wav', 'ding_0001.wav', 'ding_0002.wav', 'ding_0003.wav', 'dong_0001.wav', 'dong_0002.wav', 'dong_0003.wav', 'duan_0001.wav', 'duan_0002.wav', 'gao_0001.wav', 'gou_0001.wav', 'he_0001.wav', 'ji_0001.wav', 'ji_0002.wav', 'ji_0003.wav', 'ji_0004.wav', 'jian_0001.wav', 'jiao_0001.wav', 'jiao_0002.wav', 'jiao_0003.wav', 'jiao_0004.wav', 'jiao_0005.wav', 'jing_0001.wav', 'kang_0001.wav', 'lou_0001.wav', 'shang_0001.wav', 'shen_0001.wav', 'shen_0002.wav', 'shi_0001.wav', 'shu_0001.wav', 'suan_0001.wav', 'yi_0001.wav', 'yi_0002.wav', 'zheng_0001.wav'],
+        'dxl': ['a_0001.wav', 'han_0001.wav', 'han_0002.wav', 'jian_0001.wav', 'jian_0002.wav', 'ma_0001.wav', 'ma_0002.wav', 'ne_0001.wav', 'shui_0001.wav'],
+        'hg1': ['chui_0001.wav', 'chun_0001.wav', 'ha_0001.wav', 'li_0001.wav', 'li_0002.wav', 'mi_0001.wav', 'mi_0002.wav', 'shang_0001.wav', 'sui_0001.wav', 'ye_0001.wav', 'yi_0001.wav', 'you_0001.wav', 'yuan_0001.wav'],
+        'hg2': ['ha_0001.wav', 'ji_0001.wav', 'kang_0001.wav', 'kong_0001.wav', 'la_0001.wav', 'long_0001.wav', 'mi_0001.wav'],
+        'hjm': ['duo_0001.wav', 'ga_0001.wav', 'ga_0002.wav', 'ga_0003.wav', 'gu_0001.wav', 'ha_0001.wav', 'ha_0002.wav', 'ha_0003.wav', 'ha_0004.wav', 'ha_0005.wav', 'ji_0001.wav', 'ji_0002.wav', 'mi_0001.wav', 'mi_0002.wav', 'mi_0003.wav', 'mi_0004.wav', 'mie_0001.wav', 'na_0001.wav', 'wo_0001.wav', 'xi_0001.wav', 'ya_0001.wav'],
+        'hm': ['ha_0001.wav', 'mu_0001.wav', 'mu_0002.wav'],
+        'mb': ['bo_0001.wav', 'bo_0002.wav', 'bo_0003.wav', 'bo_0004.wav', 'man_0001.wav', 'man_0002.wav', 'man_0003.wav', 'man_0004.wav'],
+        'mbo': ['man_0001.wav'],
+        'nyyszgr': ['guo_0001.wav', 'ren_0001.wav', 'shi_0001.wav', 'yong_0001.wav', 'yuan_0001.wav', 'zhong_0001.wav'],
+        'pbb': ['ai_0001.wav', 'bai_0001.wav', 'bai_0002.wav', 'bao_0001.wav', 'bao_0002.wav', 'bao_0003.wav', 'bao_0004.wav', 'bao_0005.wav', 'bao_0006.wav', 'ha_0001.wav', 'ha_0002.wav', 'ha_0003.wav', 'hao_0001.wav', 'ke_0001.wav', 'mi_0001.wav', 'mi_0002.wav', 'mi_0003.wav', 'mi_0004.wav', 'pang_0001.wav', 'pang_0002.wav', 'pang_0003.wav', 'shou_0001.wav', 'tao_0001.wav', 'wei_0001.wav', 'xiao_0001.wav'],
+        'uzi': ['de_0001.wav', 'shen_0001.wav', 'wu_0001.wav', 'yong_0001.wav', 'yuan_0001.wav', 'zi_0001.wav'],
+        'yzd': ['dan_0001.wav', 'yuan_0001.wav', 'zi_0001.wav'],
+        'yy': ['hui_0001.wav', 'jia_0001.wav', 'jie_0001.wav', 'lai_0001.wav', 'men_0001.wav', 'ni_0001.wav', 'wo_0001.wav', 'ya_0001.wav', 'ya_0002.wav']
+      }
+      
+      for (const [subdir, files] of Object.entries(subdirFileLists)) {
+        subdirFileMap.set(subdir, files)
+        console.log(`子目录 ${subdir} 预加载了 ${files.length} 个音频文件: ${files.slice(0, 5).join(', ')}${files.length > 5 ? '...' : ''}`)
+      }
+    }
+    
+    // 初始化子目录文件映射
+    const subdirFileMapPromise = initSubdirFileMap()
 
     async function generate() {
       // 判空
       if (formData.text === "") return
+      
+      // 等待子目录文件映射初始化完成
+      await subdirFileMapPromise
+      console.log('子目录文件映射初始化完成，开始音频获取')
 
       // 将英文字母转为拼音，保存为[xxx]，防止插入空白
       const chinglishifyed = formData.text
@@ -390,7 +424,7 @@ export default {
       // 将汉字转为拼音，过滤不可识别标识
       const purePinyin = pinyin.getFullChars(chinglishifyed).replace(/[^a-zA-Z[\]]/g, '');
       // 将[xxx]放入短数组中
-      const pinyinTokens = purePinyin.split(/(?=\[)|(?<=])/).map(i => /\[.+]/.test(i) ? [i.slice(1, -1)] : i)
+      const pinyinTokens = purePinyin.split(/(?=\[)|(?<=])/).map(i => /\[.+\]/.test(i) ? [i.slice(1, -1)] : i)
       console.log(pinyinTokens)
 
       // 匹配原声大碟，将完整句子替换为原声大碟
@@ -444,10 +478,25 @@ export default {
       /* 20240106 更换的可构造音频序列生成 BEGIN */
       // 小写字母转换为大写字母，非中英数字（含点）字符转换为空
       // 大小写之后用来区分是 拼音 还是 chinglish字母
-      const characters = Array.from(formData.text
-        .toUpperCase()
-        .replace(/[^.0-9a-zA-Z\u4e00-\u9fff]+/g, " "));
+      // 先将文本分割为: 连续英文单词(保持完整) 和 其他字符(逐字拆开)
+      const characters = [];
+      // 按连续英文字母 vs 非英文部分分割
+      const parts = formData.text.split(/([a-zA-Z]+)/);
+      for (const part of parts) {
+        if (/^[a-zA-Z]+$/.test(part)) {
+          // 连续英文字母，作为完整单词保留
+          characters.push(part.toUpperCase());
+        } else {
+          // 非英文部分，转大写后逐字拆开
+          const cleaned = part.toUpperCase().replace(/[^.0-9a-zA-Z\u4e00-\u9fff]+/g, " ");
+          characters.push(...Array.from(cleaned));
+        }
+      }
       const tonedPinyins = characters.map(v => {
+        // 如果是多字母的完整英文单词，直接保留，不转拼音，标记为英文单词
+        if (v.length > 1 && /^[A-Z]+$/i.test(v)) {
+          return { p: v, t: null, isEnglishWord: true }
+        }
         const [, p, t] = (pinyin2(v, { style: "tone2" })[0][0].match(/^([a-z]+)([0-9]?)$/) || [null, v, null]);
         return { p, t: { [null]: null, [""]: 0, 1: 1, 2: 2, 3: 3, 4: 4 }[t] }
       });
@@ -460,7 +509,7 @@ export default {
         function setOptMatch(fromIndex, matchCount, tonedPinyin, ysddKey) {
           const toIndex = fromIndex + matchCount + !matchCount;
           if (!optMatch[fromIndex]) {
-            optMatch[toIndex] = [{ p: tonedPinyin?.p || ysddKey, t: tonedPinyin?.t || null, isYsdd: !!ysddKey }];
+            optMatch[toIndex] = [{ p: tonedPinyin?.p || ysddKey, t: tonedPinyin?.t || null, isYsdd: !!ysddKey, isEnglishWord: tonedPinyin?.isEnglishWord || false }];
             optMatchCount[toIndex] = matchCount;
             return
           }
@@ -470,7 +519,7 @@ export default {
           if (matchCount) {
             optNew.push({ p: ysddKey, t: null, isYsdd: true });
           } else {
-            optNew.push({ p: tonedPinyin.p, t: tonedPinyin.t, isYsdd: false });
+            optNew.push({ p: tonedPinyin.p, t: tonedPinyin.t, isYsdd: false, isEnglishWord: tonedPinyin.isEnglishWord || false });
           }
           optMatch[toIndex] = optNew;
           optMatchCount[toIndex] = countNew;
@@ -515,10 +564,39 @@ export default {
       // 数字和英文字母（含.）转拼音
       console.log("20240106 ysdded", ysdded);
       const chinglishfied = ysdded.reduce((prev, v) => {
-        if (!v.p.match(/^[.A-Z0-9]$/)) {
+        // 检查是否是原始输入的完整英文单词（通过isEnglishWord标记区分中文拼音）
+        if (v.isEnglishWord) {
+          // 完整英文单词，检查是否在原声大碟中有匹配
+          if (formData.isYsdd) {
+            const lowerWord = v.p.toLowerCase();
+            // 检查ysddSource中是否有匹配
+            if (ysddSource.has(lowerWord)) {
+              prev.push({ p: lowerWord, t: null, isYsdd: true });
+              return prev;
+            }
+            // 检查ysddDict中是否有匹配（通过getFullChars生成的键）
+            if (ysddDict.has(lowerWord)) {
+              prev.push({ p: lowerWord, t: null, isYsdd: true });
+              return prev;
+            }
+          }
+          // 不在原声大碟中，逐字母转为chinglish拼音
+          for (const ch of v.p) {
+            const mapped = tonedChinglish.get(ch);
+            if (mapped) {
+              prev.push(...mapped);
+            } else {
+              prev.push({ p: ch.toLowerCase(), t: null, isYsdd: false });
+            }
+          }
+          return prev;
+        }
+        
+        if (!v.p.match(/^[.A-Z0-9!？；：、...，。()\[\]{}_+=\-*/\\\\|~@#$%^&'"<>]$/)) { // eslint-disable-line no-useless-escape
           prev.push(v);
           return prev
         }
+        
         prev.push(...tonedChinglish.get(v.p));
         return prev
       }, []);
@@ -526,10 +604,36 @@ export default {
 
       // 合并连续出现的短暂停顿
       sliced = chinglishfied.reduce((prev, { p, isYsdd }) => {
-        if (isYsdd) prev.push(`<${ysddSource.get(p)}>`)
-        else if (tokenSet.has(p)) prev.push(p);
-        else if (prev[prev.length - 1] === "_") return prev;
-        else prev.push("_");
+        if (isYsdd) {
+          // 对于原声大碟，先尝试从ysddSource获取文件名
+          let filename = ysddSource.get(p);
+          
+          // 如果ysddSource中没有，尝试从ysddDict中查找
+          if (!filename) {
+            // 查找英文单词对应的原声大碟文件名
+            // 例如："man"应该对应到"男人"的拼音键"man"
+            for (const [pyKey, file] of ysddDict.entries()) {
+              if (pyKey === p) {
+                filename = file;
+                break;
+              }
+            }
+          }
+          
+          // 如果找到了文件名，使用原声大碟格式
+          if (filename) {
+            prev.push(`<${filename}>`);
+          } else {
+            // 如果没有找到，回退到普通拼音处理
+            if (tokenSet.has(p)) prev.push(p);
+            else if (prev[prev.length - 1] === "_") return prev;
+            else prev.push("_");
+          }
+        } else {
+          if (tokenSet.has(p)) prev.push(p);
+          else if (prev[prev.length - 1] === "_") return prev;
+          else prev.push("_");
+        }
         if (formData.isSliced) prev.push("_");
         return prev
       }, []);
@@ -539,32 +643,127 @@ export default {
       // 等待处理
       isComplete.value = false
 
-      // 缓存音频素材，防止重复请求
-      const tmpFetchList = [...new Set(sliced).keys(), '_']
-      await Promise.all(
-        tmpFetchList
-          .filter(v => !tokenDict.has(v))
-          .map((v) => {
-            const uri = /<.+>/.test(v) ? (`${YSDD_TOKEN_PATH}/${v.replace(/<(.+)>/, '$1')}.mp3`) : (`${TOKENS_PATH}/${v}.wav`)
+      // 为每个字独立获取音频，而不是预先缓存
+      const audioPromises = sliced.map(async (v) => {
+        // 如果是原声大碟，直接获取
+        if (/<.+>/.test(v)) {
+          const uri = `${YSDD_TOKEN_PATH}/${v.replace(/<(.+)>/, '$1')}.mp3`
+          return fetch(uri, {
+            method: 'GET',
+            cache: 'force-cache'
+          }).then(resp => resp.blob())
+        }
+        
+        // 检查是否是标点符号或英文，尝试从ysddTokens获取
+        if (v.match(/^[!？；：、...，。()\[\]{}_+=\-*/\\\\|~@#$%^&'"<>a-zA-Z]+$/)) { // eslint-disable-line no-useless-escape
+          console.log(`检测到标点符号或英文: ${v}，尝试从ysddTokens获取`)
+          const ysddUri = `${YSDD_TOKEN_PATH}/${v}.mp3`
+          return fetch(ysddUri, {
+            method: 'GET',
+            cache: 'force-cache'
+          }).then(resp => {
+            if (resp.ok) {
+              console.log(`标点符号或英文 ${v} 在ysddTokens中找到音频文件`)
+              return resp.blob()
+            } else {
+              console.log(`标点符号或英文 ${v} 在ysddTokens中未找到音频文件，回退到tokens获取`)
+              const uri = `${TOKENS_PATH}/${v}.wav`
+              return fetch(uri, {
+                method: 'GET',
+                cache: 'force-cache'
+              }).then(resp => resp.blob())
+            }
+          })
+        }
+        
+        // 检查拼音首字母子目录
+        const availableSubdirs = []
+        
+        // 获取所有包含该拼音的子目录
+        const subdirs = ['amns', 'ddj', 'dxl', 'hg1', 'hg2', 'hjm', 'hm', 'mb', 'mbo', 'nyyszgr', 'pbb', 'uzi', 'yzd', 'yy']
+        for (const subdir of subdirs) {
+          const files = subdirFileMap.get(subdir) || []
+          // 检查是否有匹配的文件名
+          const matchingFiles = files.filter(file => file.startsWith(v + '_') && file.endsWith('.wav'))
+          if (matchingFiles.length > 0) {
+            availableSubdirs.push(subdir)
+            console.log(`拼音 ${v} 在子目录 ${subdir} 中找到 ${matchingFiles.length} 个匹配文件: ${matchingFiles.join(', ')}`)
+          }
+        }
+        
+        const n = availableSubdirs.length
+        console.log(`拼音 ${v} 的可用子目录数量: ${n}, 子目录列表: ${availableSubdirs.join(', ')}`)
+        
+        if (n === 0) {
+          console.log(`拼音 ${v}: 没有子目录包含该拼音，从tokens直接获取`)
+          const uri = `${TOKENS_PATH}/${v}.wav`
+          return fetch(uri, {
+            method: 'GET',
+            cache: 'force-cache'
+          }).then(resp => resp.blob())
+        } else {
+          // 有子目录包含该拼音，进行随机选择
+          const randomChoice = Math.floor(Math.random() * (n + 1))
+          console.log(`拼音 ${v}: 随机选择结果 ${randomChoice} (范围: 0-${n})`)
+          
+          if (randomChoice === n) {
+            console.log(`拼音 ${v}: 随机选择为${n}，从tokens直接获取`)
+            const uri = `${TOKENS_PATH}/${v}.wav`
             return fetch(uri, {
               method: 'GET',
               cache: 'force-cache'
-            }).then(resp => resp.blob()).then(data => [v, data])
+            }).then(resp => resp.blob())
+          } else {
+            // 随机选择小于n，从对应子目录获取
+            const selectedSubdir = availableSubdirs[randomChoice]
+            console.log(`拼音 ${v}: 随机选择为${randomChoice}，从子目录 ${selectedSubdir} 获取`)
+            
+            // 获取该子目录中所有匹配的拼音文件
+            const files = subdirFileMap.get(selectedSubdir) || []
+            const matchingFiles = files.filter(file => file.startsWith(v + '_') && file.endsWith('.wav'))
+            console.log(`拼音 ${v}: 在子目录 ${selectedSubdir} 中找到 ${matchingFiles.length} 个匹配文件: ${matchingFiles.join(', ')}`)
+            
+            if (matchingFiles.length > 0) {
+              // 随机选择一个文件
+              const randomFile = matchingFiles[Math.floor(Math.random() * matchingFiles.length)]
+              console.log(`拼音 ${v}: 随机选择文件 ${randomFile}`)
+              const uri = `${TOKENS_PATH}/${selectedSubdir}/${randomFile}`
+              return fetch(uri, {
+                method: 'GET',
+                cache: 'force-cache'
+              }).then(resp => {
+                if (resp.ok) {
+                  return resp.blob()
+                } else {
+                  console.log(`拼音 ${v}: 文件 ${randomFile} 不存在，回退到tokens直接获取`)
+                  const fallbackUri = `${TOKENS_PATH}/${v}.wav`
+                  return fetch(fallbackUri, {
+                    method: 'GET',
+                    cache: 'force-cache'
+                  }).then(resp => resp.blob())
+                }
+              })
+            } else {
+              console.log(`拼音 ${v}: 在子目录 ${selectedSubdir} 中没有找到匹配文件，回退到tokens直接获取`)
+              const uri = `${TOKENS_PATH}/${v}.wav`
+              return fetch(uri, {
+                method: 'GET',
+                cache: 'force-cache'
+              }).then(resp => resp.blob())
+            }
           }
-          )
-      ).then(arr => {
-        for (const [key, blob] of arr) {
-          tokenDict.set(key, blob)
         }
-        //console.log('TokenDict', tokenDict)
-      }).catch(err => {
+      })
+
+      // 获取所有音频
+      const audioBuffers = await Promise.all(audioPromises).catch(err => {
         console.error(err)
         ElMessage({
           message: '音频请求失败，请尝试关闭迅雷插件，IDM插件等接管浏览器下载行为的软件',
           type: 'error'
         })
+        throw err
       })
-
       // 将多个声道变为单声道
       const audioCtx = new AudioContext();
       function sliceToOneChannel(audioBuffer) {
@@ -575,9 +774,10 @@ export default {
         newAudioBuffer.copyToChannel(audioBuffer.getChannelData(0), 0);
         return newAudioBuffer;
       }
-      // 音频拼接
+      
+      // 音频拼接 - 使用独立获取的音频数组
       await crunker
-        .fetchAudio(...sliced.map(v => tokenDict.get(v)))
+        .fetchAudio(...audioBuffers)
         .then((buffers) => {
           // 将多个声道变为单声道
           buffers = buffers.map(sliceToOneChannel);
@@ -587,15 +787,14 @@ export default {
         .then((output) => {
           audioSrc.value = output.url
           audioSrc.blob = output.blob
-          const filename = formData.text.slice(0, 20).replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '') || 'otto-hzys' // 防止文件名过长或包含特殊字符
+          const filename = formData.text.slice(0, 20).replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g, '') || 'otto-hzys' // 防止文件名过长或包含特殊字符
           const datestr = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 15) // YYYYMMDDHHmmss
           audioSrc.name = `${filename}-${datestr}`
           ElMessage({
             message: `答辩<${audioSrc.name}>生成完成，请享用`,
             type: 'success'
           })
-        })
-        .catch((err) => {
+        })        .catch((err) => {
           console.error(err)
           ElMessage({
             message: '音频拼接失败，请重试。或联系作者反馈Bug',

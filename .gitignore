@@ -23,3 +23,12 @@ pnpm-debug.log*
 *.sw?
 
 .vercel
+
+# 忽略资源目录
+hajimi-assets/
+temp_vocals_output/
+tools/
+ysdd/
+
+# 忽略依赖文件
+requirements.txt
