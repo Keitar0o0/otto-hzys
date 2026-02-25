@@ -644,126 +644,134 @@ export default {
       isComplete.value = false
 
       // 为每个字独立获取音频，而不是预先缓存
-      const audioPromises = sliced.map(async (v) => {
-        // 如果是原声大碟，直接获取
-        if (/<.+>/.test(v)) {
-          const uri = `${YSDD_TOKEN_PATH}/${v.replace(/<(.+)>/, '$1')}.mp3`
-          return fetch(uri, {
-            method: 'GET',
-            cache: 'force-cache'
-          }).then(resp => resp.blob())
+      const audioPromises = sliced.map(async (v, index) => {
+        // 辅助函数：验证响应并返回 blob
+        const validateAndGetBlob = async (resp, source) => {
+          if (!resp.ok) {
+            throw new Error(`音频文件请求失败: ${source}, status: ${resp.status}`)
+          }
+          const blob = await resp.blob()
+          // 验证 blob 是否有效
+          if (!blob || blob.size === 0) {
+            throw new Error(`音频文件为空: ${source}`)
+          }
+          console.log(`✓ 成功获取音频: ${source}, size: ${blob.size} bytes, type: ${blob.type}`)
+          return blob
         }
-        
-        // 检查是否是标点符号或英文，尝试从ysddTokens获取
-        if (v.match(/^[!？；：、...，。()\[\]{}_+=\-*/\\\\|~@#$%^&'"<>a-zA-Z]+$/)) { // eslint-disable-line no-useless-escape
-          console.log(`检测到标点符号或英文: ${v}，尝试从ysddTokens获取`)
-          const ysddUri = `${YSDD_TOKEN_PATH}/${v}.mp3`
-          return fetch(ysddUri, {
-            method: 'GET',
-            cache: 'force-cache'
-          }).then(resp => {
+
+        try {
+          // 如果是原声大碟，直接获取
+          if (/<.+>/.test(v)) {
+            const filename = v.replace(/<(.+)>/, '$1')
+            const uri = `${YSDD_TOKEN_PATH}/${filename}.mp3`
+            console.log(`[音频${index}] 获取原声大碟: ${filename}`)
+            const resp = await fetch(uri, { method: 'GET', cache: 'force-cache' })
+            return await validateAndGetBlob(resp, uri)
+          }
+          
+          // 检查是否是标点符号或英文，尝试从ysddTokens获取
+          if (v.match(/^[!？；：、...，。()\[\]{}_+=\-*/\\\\|~@#$%^&'"<>a-zA-Z]+$/)) { // eslint-disable-line no-useless-escape
+            console.log(`[音频${index}] 检测到标点符号或英文: ${v}，尝试从ysddTokens获取`)
+            const ysddUri = `${YSDD_TOKEN_PATH}/${v}.mp3`
+            const resp = await fetch(ysddUri, { method: 'GET', cache: 'force-cache' })
             if (resp.ok) {
-              console.log(`标点符号或英文 ${v} 在ysddTokens中找到音频文件`)
-              return resp.blob()
+              console.log(`✓ 标点符号或英文 ${v} 在ysddTokens中找到音频文件`)
+              return await validateAndGetBlob(resp, ysddUri)
             } else {
               console.log(`标点符号或英文 ${v} 在ysddTokens中未找到音频文件，回退到tokens获取`)
               const uri = `${TOKENS_PATH}/${v}.wav`
-              return fetch(uri, {
-                method: 'GET',
-                cache: 'force-cache'
-              }).then(resp => resp.blob())
+              const fallbackResp = await fetch(uri, { method: 'GET', cache: 'force-cache' })
+              return await validateAndGetBlob(fallbackResp, uri)
             }
-          })
-        }
-        
-        // 检查拼音首字母子目录
-        const availableSubdirs = []
-        
-        // 获取所有包含该拼音的子目录
-        const subdirs = ['amns', 'ddj', 'dxl', 'hg1', 'hg2', 'hjm', 'hm', 'mb', 'mbo', 'nyyszgr', 'pbb', 'uzi', 'yzd', 'yy']
-        for (const subdir of subdirs) {
-          const files = subdirFileMap.get(subdir) || []
-          // 检查是否有匹配的文件名
-          const matchingFiles = files.filter(file => file.startsWith(v + '_') && file.endsWith('.wav'))
-          if (matchingFiles.length > 0) {
-            availableSubdirs.push(subdir)
-            console.log(`拼音 ${v} 在子目录 ${subdir} 中找到 ${matchingFiles.length} 个匹配文件: ${matchingFiles.join(', ')}`)
           }
-        }
         
-        const n = availableSubdirs.length
-        console.log(`拼音 ${v} 的可用子目录数量: ${n}, 子目录列表: ${availableSubdirs.join(', ')}`)
-        
-        if (n === 0) {
-          console.log(`拼音 ${v}: 没有子目录包含该拼音，从tokens直接获取`)
-          const uri = `${TOKENS_PATH}/${v}.wav`
-          return fetch(uri, {
-            method: 'GET',
-            cache: 'force-cache'
-          }).then(resp => resp.blob())
-        } else {
-          // 有子目录包含该拼音，进行随机选择
-          const randomChoice = Math.floor(Math.random() * (n + 1))
-          console.log(`拼音 ${v}: 随机选择结果 ${randomChoice} (范围: 0-${n})`)
+          // 检查拼音首字母子目录
+          const availableSubdirs = []
           
-          if (randomChoice === n) {
-            console.log(`拼音 ${v}: 随机选择为${n}，从tokens直接获取`)
-            const uri = `${TOKENS_PATH}/${v}.wav`
-            return fetch(uri, {
-              method: 'GET',
-              cache: 'force-cache'
-            }).then(resp => resp.blob())
-          } else {
-            // 随机选择小于n，从对应子目录获取
-            const selectedSubdir = availableSubdirs[randomChoice]
-            console.log(`拼音 ${v}: 随机选择为${randomChoice}，从子目录 ${selectedSubdir} 获取`)
-            
-            // 获取该子目录中所有匹配的拼音文件
-            const files = subdirFileMap.get(selectedSubdir) || []
+          // 获取所有包含该拼音的子目录
+          const subdirs = ['amns', 'ddj', 'dxl', 'hg1', 'hg2', 'hjm', 'hm', 'mb', 'mbo', 'nyyszgr', 'pbb', 'uzi', 'yzd', 'yy']
+          for (const subdir of subdirs) {
+            const files = subdirFileMap.get(subdir) || []
+            // 检查是否有匹配的文件名
             const matchingFiles = files.filter(file => file.startsWith(v + '_') && file.endsWith('.wav'))
-            console.log(`拼音 ${v}: 在子目录 ${selectedSubdir} 中找到 ${matchingFiles.length} 个匹配文件: ${matchingFiles.join(', ')}`)
-            
             if (matchingFiles.length > 0) {
-              // 随机选择一个文件
-              const randomFile = matchingFiles[Math.floor(Math.random() * matchingFiles.length)]
-              console.log(`拼音 ${v}: 随机选择文件 ${randomFile}`)
-              const uri = `${TOKENS_PATH}/${selectedSubdir}/${randomFile}`
-              return fetch(uri, {
-                method: 'GET',
-                cache: 'force-cache'
-              }).then(resp => {
-                if (resp.ok) {
-                  return resp.blob()
-                } else {
-                  console.log(`拼音 ${v}: 文件 ${randomFile} 不存在，回退到tokens直接获取`)
-                  const fallbackUri = `${TOKENS_PATH}/${v}.wav`
-                  return fetch(fallbackUri, {
-                    method: 'GET',
-                    cache: 'force-cache'
-                  }).then(resp => resp.blob())
-                }
-              })
-            } else {
-              console.log(`拼音 ${v}: 在子目录 ${selectedSubdir} 中没有找到匹配文件，回退到tokens直接获取`)
-              const uri = `${TOKENS_PATH}/${v}.wav`
-              return fetch(uri, {
-                method: 'GET',
-                cache: 'force-cache'
-              }).then(resp => resp.blob())
+              availableSubdirs.push(subdir)
+              console.log(`[音频${index}] 拼音 ${v} 在子目录 ${subdir} 中找到 ${matchingFiles.length} 个匹配文件`)
             }
           }
+          
+          const n = availableSubdirs.length
+          console.log(`[音频${index}] 拼音 ${v} 的可用子目录数量: ${n}`)
+          
+          if (n === 0) {
+            console.log(`[音频${index}] 拼音 ${v}: 没有子目录包含该拼音，从tokens直接获取`)
+            const uri = `${TOKENS_PATH}/${v}.wav`
+            const resp = await fetch(uri, { method: 'GET', cache: 'force-cache' })
+            return await validateAndGetBlob(resp, uri)
+          } else {
+            // 有子目录包含该拼音，进行随机选择
+            const randomChoice = Math.floor(Math.random() * (n + 1))
+            console.log(`[音频${index}] 拼音 ${v}: 随机选择结果 ${randomChoice} (范围: 0-${n})`)
+            
+            if (randomChoice === n) {
+              console.log(`[音频${index}] 拼音 ${v}: 随机选择为${n}，从tokens直接获取`)
+              const uri = `${TOKENS_PATH}/${v}.wav`
+              const resp = await fetch(uri, { method: 'GET', cache: 'force-cache' })
+              return await validateAndGetBlob(resp, uri)
+            } else {
+              // 随机选择小于n，从对应子目录获取
+              const selectedSubdir = availableSubdirs[randomChoice]
+              console.log(`[音频${index}] 拼音 ${v}: 随机选择为${randomChoice}，从子目录 ${selectedSubdir} 获取`)
+              
+              // 获取该子目录中所有匹配的拼音文件
+              const files = subdirFileMap.get(selectedSubdir) || []
+              const matchingFiles = files.filter(file => file.startsWith(v + '_') && file.endsWith('.wav'))
+              console.log(`[音频${index}] 拼音 ${v}: 在子目录 ${selectedSubdir} 中找到 ${matchingFiles.length} 个匹配文件`)
+              
+              if (matchingFiles.length > 0) {
+                // 随机选择一个文件
+                const randomFile = matchingFiles[Math.floor(Math.random() * matchingFiles.length)]
+                console.log(`[音频${index}] 拼音 ${v}: 随机选择文件 ${randomFile}`)
+                const uri = `${TOKENS_PATH}/${selectedSubdir}/${randomFile}`
+                const resp = await fetch(uri, { method: 'GET', cache: 'force-cache' })
+                if (resp.ok) {
+                  return await validateAndGetBlob(resp, uri)
+                } else {
+                  console.log(`[音频${index}] 拼音 ${v}: 文件 ${randomFile} 不存在，回退到tokens直接获取`)
+                  const fallbackUri = `${TOKENS_PATH}/${v}.wav`
+                  const fallbackResp = await fetch(fallbackUri, { method: 'GET', cache: 'force-cache' })
+                  return await validateAndGetBlob(fallbackResp, fallbackUri)
+                }
+              } else {
+                console.log(`[音频${index}] 拼音 ${v}: 在子目录 ${selectedSubdir} 中没有找到匹配文件，回退到tokens直接获取`)
+                const uri = `${TOKENS_PATH}/${v}.wav`
+                const resp = await fetch(uri, { method: 'GET', cache: 'force-cache' })
+                return await validateAndGetBlob(resp, uri)
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`[音频${index}] 获取音频失败:`, error)
+          ElMessage({
+            message: `音频获取失败 (${v}): ${error.message}`,
+            type: 'error'
+          })
+          throw error
         }
       })
 
       // 获取所有音频
+      console.log('开始获取所有音频，总数:', sliced.length)
       const audioBuffers = await Promise.all(audioPromises).catch(err => {
-        console.error(err)
+        console.error('音频请求失败:', err)
         ElMessage({
-          message: '音频请求失败，请尝试关闭迅雷插件，IDM插件等接管浏览器下载行为的软件',
+          message: `音频请求失败: ${err.message}。请检查网络连接或关闭迅雷、IDM等下载插件`,
           type: 'error'
         })
         throw err
       })
+      console.log('所有音频获取成功，开始处理...')
+      
       // 将多个声道变为单声道
       const audioCtx = new AudioContext();
       function sliceToOneChannel(audioBuffer) {
@@ -776,14 +784,26 @@ export default {
       }
       
       // 音频拼接 - 使用独立获取的音频数组
+      console.log('开始音频拼接...')
       await crunker
         .fetchAudio(...audioBuffers)
         .then((buffers) => {
+          console.log('音频解码成功，buffer数量:', buffers.length)
           // 将多个声道变为单声道
-          buffers = buffers.map(sliceToOneChannel);
+          buffers = buffers.map((buffer, idx) => {
+            try {
+              return sliceToOneChannel(buffer)
+            } catch (e) {
+              console.error(`第${idx}个音频声道处理失败:`, e)
+              throw e
+            }
+          })
           return crunker.concatAudio(buffers)
         })
-        .then((merged) => crunker.export(merged, 'audio/wav'))
+        .then((merged) => {
+          console.log('音频合并成功，开始导出...')
+          return crunker.export(merged, 'audio/wav')
+        })
         .then((output) => {
           audioSrc.value = output.url
           audioSrc.blob = output.blob
@@ -794,11 +814,14 @@ export default {
             message: `答辩<${audioSrc.name}>生成完成，请享用`,
             type: 'success'
           })
-        })        .catch((err) => {
-          console.error(err)
+        })
+        .catch((err) => {
+          console.error('音频拼接失败:', err)
+          const errorMsg = err.message || '未知错误'
           ElMessage({
-            message: '音频拼接失败，请重试。或联系作者反馈Bug',
-            type: 'error'
+            message: `音频拼接失败: ${errorMsg}。请重试或联系作者反馈Bug`,
+            type: 'error',
+            duration: 5000
           })
         })
         .finally(() => isComplete.value = true)

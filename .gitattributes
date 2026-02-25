@@ -1,0 +1,21 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Audio files should be treated as binary
+*.wav binary
+*.mp3 binary
+*.ogg binary
+*.m4a binary
+
+# Images should be treated as binary
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.webp binary
+
+# Fonts should be treated as binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
