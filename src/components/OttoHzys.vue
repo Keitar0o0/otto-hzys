@@ -29,6 +29,9 @@
                     <el-form-item label="原声大碟模式">
                       <el-switch v-model="formData.isYsdd" />
                     </el-form-item>
+                    <el-form-item label="使用非电棍拼音">
+                      <el-switch v-model="formData.useNonDdbPinyin" />
+                    </el-form-item>
                     <el-form-item label="字间添加短暂停顿">
                       <el-switch v-model="formData.isSliced" />
                     </el-form-item>
@@ -176,6 +179,11 @@
                   </li>
                   <li>
                     <div>
+                      使用非电棍拼音：开启后活字印刷会在电棍语音和其他语音中随机选择音频，关闭后仅使用电棍语音。
+                    </div>
+                  </li>
+                  <li>
+                    <div>
                       字间停顿：开启后会在每字中间增加0.25秒的空白时间，方便将生成结果作为剪辑素材。
                     </div>
                   </li>
@@ -299,6 +307,7 @@ export default {
       text: '大家好啊，我是说的道理',
       isYsdd: true,
       isSliced: false,
+      useNonDdbPinyin: true,
     })
     const isComplete = ref(true)
     const version = ref('v1.3')
@@ -685,6 +694,14 @@ export default {
           console.log(`标点符号 ${v} 在ysddTokens中未找到音频文件，回退到tokens获取`)
           const tokenBlob = await safeFetchAudio(`${TOKENS_PATH}/${v}.wav`)
           if (tokenBlob) return tokenBlob
+          return await safeFetchAudio(`${TOKENS_PATH}/_.wav`)
+        }
+        
+        // 如果关闭了"使用非电棍拼音"选项，直接从tokens直属目录获取
+        if (!formData.useNonDdbPinyin) {
+          console.log(`拼音 ${v}: 非电棍拼音已关闭，从tokens直接获取`)
+          const blob = await safeFetchAudio(`${TOKENS_PATH}/${v}.wav`)
+          if (blob) return blob
           return await safeFetchAudio(`${TOKENS_PATH}/_.wav`)
         }
         
