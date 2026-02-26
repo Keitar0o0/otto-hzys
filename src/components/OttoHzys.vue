@@ -674,15 +674,15 @@ export default {
           return await safeFetchAudio(`${TOKENS_PATH}/_.wav`)
         }
         
-        // 检查是否是标点符号或英文，尝试从ysddTokens获取
-        if (v.match(/^[!？；：、...，。()\[\]{}_+=\-*/\\\\|~@#$%^&'"<>a-zA-Z]+$/)) { // eslint-disable-line no-useless-escape
-          console.log(`检测到标点符号或英文: ${v}，尝试从ysddTokens获取`)
+        // 检查是否是标点符号，尝试从ysddTokens获取
+        if (v.match(/^[!？；：、...，。()\[\]{}_+=\-*/\\\\|~@#$%^&'"<>]+$/)) { // eslint-disable-line no-useless-escape
+          console.log(`检测到标点符号: ${v}，尝试从ysddTokens获取`)
           const ysddBlob = await safeFetchAudio(`${YSDD_TOKEN_PATH}/${v}.mp3`)
           if (ysddBlob) {
-            console.log(`标点符号或英文 ${v} 在ysddTokens中找到音频文件`)
+            console.log(`标点符号 ${v} 在ysddTokens中找到音频文件`)
             return ysddBlob
           }
-          console.log(`标点符号或英文 ${v} 在ysddTokens中未找到音频文件，回退到tokens获取`)
+          console.log(`标点符号 ${v} 在ysddTokens中未找到音频文件，回退到tokens获取`)
           const tokenBlob = await safeFetchAudio(`${TOKENS_PATH}/${v}.wav`)
           if (tokenBlob) return tokenBlob
           return await safeFetchAudio(`${TOKENS_PATH}/_.wav`)
