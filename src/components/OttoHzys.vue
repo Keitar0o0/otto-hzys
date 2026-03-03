@@ -274,6 +274,9 @@
                   <br />
                   <el-link href="https://github.com/TheUnknownThing" type="primary">TheUnknownThing</el-link>
                   新增了音频倒放和倒放下载功能 增加了更多原声大碟
+                  <br />
+                  <el-link href="https://github.com/iamxym" type="primary">xiaoyimi</el-link>
+                  增加活全家系列的拼音token与原声大碟 增加了随机选择音频token的功能
                 </el-descriptions-item>
               </el-descriptions>
             </el-card>
