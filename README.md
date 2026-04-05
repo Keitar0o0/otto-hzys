@@ -1,5 +1,5 @@
 # ♿ 大电老师活字印刷 otto-hzys
-[https://otto-hzys.huazhiwan.xyz](https://otto-hzys.huazhiwan.xyz)
+[https://otto-hzys.huazhiwan.top](https://otto-hzys.huazhiwan.top)
 
 ## 🚮 简介
 电棍otto语音活字印刷生成器。  
